@@ -16,31 +16,33 @@ import { CreditCard, Invoice } from "../models";
 import api from "../services";
 import { useEffect } from "react";
 import axios from "axios";
+import useSWR from "swr";
 
 type InvoicesListPageProps = {
   creditCards: CreditCard[];
 };
 
+const fetcher = (resource: string) => api.get(resource).then((res) => res.data);
+
 const InvoicesListPage = ({ creditCards }: InvoicesListPageProps) => {
   const [creditCardNumber, setCreditCardNumber] = useState(
     creditCards.length ? creditCards[0].number : ""
   );
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+
+  const { data: invoices } = useSWR<Invoice[]>(
+    `credit-cards/${creditCardNumber}/invoices`,
+    fetcher,
+    {
+      refreshInterval: 5000,
+      refreshWhenHidden: false,
+    }
+  );
 
   const handleChangeCCNumber = (
     event: React.ChangeEvent<{ name?: string; value: unknown }>
   ) => {
     setCreditCardNumber(event.target.value as string);
   };
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await api.get<Invoice[]>(
-        `credit-cards/${creditCardNumber}/invoices`
-      );
-      setInvoices(data);
-    })();
-  }, [creditCardNumber]);
 
   if (!creditCards.length) {
     return (
@@ -78,7 +80,7 @@ const InvoicesListPage = ({ creditCards }: InvoicesListPageProps) => {
       <Grid container>
         <Grid item xs={12} md={3}>
           <List>
-            {invoices.map((invoice) => (
+            {invoices?.map((invoice) => (
               <ListItem key={invoice.id} alignItems="flex-start">
                 <ListItemText
                   primary={format(parseISO(invoice.payment_date), "dd/MM/yyyy")}
